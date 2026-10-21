@@ -1,0 +1,12 @@
+{
+  "controller": {"host": "127.0.0.1", "port": 6653, "monitor_interval": 1.0},
+  "topology": {"capacity_mbps": 10, "delay_ms": 5, "bottleneck_mbps": 10, "bottleneck_delay_ms": 15},
+  "routing": {"candidate_paths": 4, "improvement_fraction": 0.15, "stable_intervals": 3, "cooldown_seconds": 5, "crm_memory_seconds": 12, "crm_reversal_penalty": 0.20},
+  "recovery": {"clear_intervals": 5, "step_mbps": 1.0},
+  "applications": {
+    "critical": {"protocol": "udp", "destination_port": 5001, "criticality": 1.0, "requested_mbps": 0.5, "minimum_mbps": 0.5, "max_degradation_fraction": 0.0, "max_delay_ms": 50, "max_jitter_ms": 10, "max_loss_percent": 1.0, "delay_weight": 0.7, "capacity_weight": 0.3},
+    "realtime": {"protocol": "udp", "destination_port": 5002, "criticality": 0.8, "requested_mbps": 2.0, "minimum_mbps": 1.0, "max_degradation_fraction": 0.5, "max_delay_ms": 40, "max_jitter_ms": 20, "max_loss_percent": 2.0, "delay_weight": 0.7, "capacity_weight": 0.3},
+    "bulk": {"protocol": "tcp", "destination_port": 5003, "criticality": 0.2, "requested_mbps": 6.0, "minimum_mbps": 1.0, "max_degradation_fraction": 0.83, "max_delay_ms": 500, "max_jitter_ms": 100, "max_loss_percent": 10.0, "delay_weight": 0.15, "capacity_weight": 0.85}
+  },
+  "experiments": {"repetitions": 3, "duration_seconds": 20, "warmup_seconds": 3}
+}

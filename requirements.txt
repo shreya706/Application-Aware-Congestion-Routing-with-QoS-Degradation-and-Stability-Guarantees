@@ -1,0 +1,4 @@
+os-ken>=4,<5
+networkx>=3.2,<4
+pandas>=2.1,<4
+matplotlib>=3.8,<4
