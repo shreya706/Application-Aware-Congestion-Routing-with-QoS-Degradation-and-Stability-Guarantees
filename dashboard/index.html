@@ -69,7 +69,16 @@ svg{width:100%;height:100%}
 .footer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
 .kpi{padding:13px;border-radius:13px;background:#0a151f;border:1px solid var(--line)}
 .kpi .n{font-size:19px;font-weight:800} .kpi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.control-panel{margin:0 0 16px}.control-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px;align-items:end}
+.field label{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px}
+select,input{width:100%;padding:10px;border-radius:9px;border:1px solid #2a4052;background:#0b1520;color:var(--text)}
+.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.action-row button.primary{background:#113246;border-color:#2caed0;color:#eaffff}.action-row button.danger{border-color:#7c3e4a;color:#ffc7ce}
+.runtime-status{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;color:var(--muted);font-size:12px}.runtime-status b{color:var(--text)}
+.live-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.live-box{background:#08121b;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.live-box h3{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px}.live-box pre{white-space:pre-wrap;overflow:auto;max-height:180px;margin:0;color:#cde0ef;font:11px/1.5 ui-monospace,monospace}
+.static-note{color:var(--amber);font-size:11px;margin:0 0 12px}
 @media(max-width:900px){.grid,.controls{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr 1fr}header{flex-direction:column}}
+@media(max-width:700px){.control-grid,.live-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -80,8 +89,26 @@ svg{width:100%;height:100%}
     <h1>Application-Aware Routing Monitor</h1>
     <div class="sub">Application-Aware Congestion Routing with QoS Degradation and Stability Guarantees</div>
   </div>
-  <div class="badge">36 final scenario runs · 3 repetitions each</div>
+  <div class="badge" id="serverBadge">Connecting to local controller…</div>
 </header>
+
+<section class="panel control-panel">
+  <div class="panel-title"><h2>Run the network from this dashboard</h2><span class="note">Ubuntu service required</span></div>
+  <div class="control-grid">
+    <div class="field"><label for="runMode">Routing mode</label><select id="runMode"><option value="proposed">Proposed</option><option value="shortest">Shortest path</option><option value="load-aware">Load-aware</option></select></div>
+    <div class="field"><label for="runScenario">Live network setup</label><select id="runScenario"><option value="normal">Normal</option><option value="branch_congestion">Branch congestion</option><option value="shared_overload">Shared overload</option><option value="recovery">Recovery</option></select></div>
+    <div class="field"><label for="runRepetitions">Experiment repetitions</label><input id="runRepetitions" type="number" min="1" max="10" value="1"></div>
+    <div class="field"><div class="runtime-status"><span>Controller: <b id="controllerStatus">checking</b></span><span>Network: <b id="networkStatus">checking</b></span><span>Experiment: <b id="experimentStatus">checking</b></span></div></div>
+  </div>
+  <div class="action-row">
+    <button class="primary" id="startLab">Start network</button><button id="checkPing">Check connectivity</button><button class="danger" id="stopLab">Stop network</button>
+    <button class="primary" id="runExperiment">Run experiment</button><button class="danger" id="stopExperiment">Stop experiment</button>
+  </div>
+  <div class="live-grid">
+    <div class="live-box"><h3>Live messages</h3><pre id="liveOutput">Waiting for the local dashboard service.</pre></div>
+    <div class="live-box"><h3>Live events, monitor samples, and experiment summary</h3><pre id="liveMetrics">No live controller data yet.</pre></div>
+  </div>
+</section>
 
 <div class="controls">
   <div class="control">
@@ -121,7 +148,8 @@ svg{width:100%;height:100%}
   </div>
 
   <aside class="panel">
-    <div class="panel-title"><h2>Experiment interpretation</h2><span class="note">3-run mean</span></div>
+    <div class="panel-title"><h2>Reference comparison</h2><span class="note">Embedded sample figures</span></div>
+    <p class="static-note">These charts are static figures included in the page. They are not live measurements from the network you start above.</p>
     <div class="insight"><div class="insight-k">What is happening</div><div class="insight-v" id="insight"></div></div>
 
     <div class="section-label">Critical packet loss · selected scenario</div>
@@ -189,6 +217,53 @@ function render(){
   chart("bulkChart",x=>x.throughput," Mbps",7,"bulk");
 }
 render();
+
+async function sendAction(path, body={}){
+  const output=document.getElementById("liveOutput");
+  try{
+    const response=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const result=await response.json();
+    output.textContent=(result.ok?"✓ ":"Error: ")+result.message;
+    if(!response.ok) throw new Error(result.message);
+  }catch(error){output.textContent="Could not contact the Ubuntu dashboard service: "+error.message;}
+  refreshRuntime();
+}
+async function refreshRuntime(){
+  try{
+    const response=await fetch("/api/status",{cache:"no-store"});
+    if(!response.ok) throw new Error("service unavailable");
+    const data=await response.json();
+    document.getElementById("serverBadge").textContent="Local Ubuntu control service connected";
+    document.getElementById("controllerStatus").textContent=data.controller_running?"running":"stopped";
+    document.getElementById("networkStatus").textContent=data.network_running?"running":"stopped";
+    document.getElementById("experimentStatus").textContent=data.experiment_running?"running":data.analysis_running?"updating summary":"idle";
+    document.getElementById("liveOutput").textContent=data.output.join("\n")||"Ready. Start the network or run an experiment.";
+    const event=data.events.at(-1), sample=data.monitoring.at(-1), run=data.experiment_runs.at(-1);
+    const summaries=data.summary.slice(-6);
+    document.getElementById("liveMetrics").textContent=[
+      event?"Decision: "+JSON.stringify(event):"Decision: no controller event yet",
+      sample?"Monitor: "+JSON.stringify(sample):"Monitor: no counter sample yet",
+      run?"Experiment: "+JSON.stringify(run):"Experiment: no run recorded yet",
+      summaries.length?"Latest measured summaries:\n"+summaries.map(row=>JSON.stringify(row)).join("\n"):"Measured summary: run an experiment to populate this section"
+    ].join("\n\n");
+    const mode=document.getElementById("runMode"), scenario=document.getElementById("runScenario");
+    if(!mode.dataset.touched) mode.value=data.mode;
+    if(!scenario.dataset.touched) scenario.value=data.scenario;
+  }catch(_error){
+    document.getElementById("serverBadge").textContent="Dashboard service not connected";
+    document.getElementById("controllerStatus").textContent="unavailable";
+    document.getElementById("networkStatus").textContent="unavailable";
+    document.getElementById("experimentStatus").textContent="unavailable";
+  }
+}
+document.getElementById("runMode").addEventListener("change",e=>e.target.dataset.touched="1");
+document.getElementById("runScenario").addEventListener("change",e=>e.target.dataset.touched="1");
+document.getElementById("startLab").onclick=()=>sendAction("/api/start",{mode:document.getElementById("runMode").value,scenario:document.getElementById("runScenario").value});
+document.getElementById("stopLab").onclick=()=>sendAction("/api/stop");
+document.getElementById("checkPing").onclick=()=>sendAction("/api/ping");
+document.getElementById("runExperiment").onclick=()=>sendAction("/api/experiment",{mode:document.getElementById("runMode").value,repetitions:document.getElementById("runRepetitions").value});
+document.getElementById("stopExperiment").onclick=()=>sendAction("/api/experiment/stop");
+refreshRuntime();setInterval(refreshRuntime,2000);
 </script>
 </body>
 </html>

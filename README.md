@@ -46,6 +46,21 @@ chmod +x scripts/*.sh cleanup.sh
 
 The apt packages (Mininet, OVS, iperf3, ping, Python and venv) require `sudo`; Python packages install into `.venv` without sudo. `requirements.txt` pins OS-Ken 3.1.1 because this project uses the `osken-manager` launcher, which OS-Ken 4 removed. NetworkX, pandas, and Matplotlib use compatible major-version constraints. If distro Mininet is not available, install it from the official Mininet project instructions for that Ubuntu release, then rerun the Python venv steps.
 
+## Browser dashboard controls
+
+The dashboard can start and stop the live lab, run `pingall`, launch an experiment, and show recent controller and monitor log rows. It talks only to a local service bound to `127.0.0.1`; it does not accept shell commands from the browser. Install the normal dependencies first, then install the service once:
+
+```bash
+chmod +x scripts/*.sh cleanup.sh
+sudo ./scripts/install_dashboard_service.sh
+```
+
+Open `http://127.0.0.1:8765` in a browser running inside the Ubuntu environment. The systemd service starts at boot, so after this one-time installation, use the browser buttons instead of the controller and topology terminal commands. The service needs root privileges to create Mininet namespaces and configure Open vSwitch. A browser on the Windows host may need VM port forwarding; use the Ubuntu browser if `127.0.0.1` does not reach the guest.
+
+The comparison charts still contain embedded static sample figures. The live status and log panel is separate and reads the controller's CSV files. Do not treat the static charts as measurements from the current run. Stop the interactive network before launching an experiment. Stopping an experiment marks its partial outputs as incomplete.
+
+To remove the service later, run `sudo systemctl disable --now aa-routing-dashboard.service` and remove `/etc/systemd/system/aa-routing-dashboard.service`.
+
 ## Run the network
 
 Use two terminals in the Ubuntu VM, both in this directory.
