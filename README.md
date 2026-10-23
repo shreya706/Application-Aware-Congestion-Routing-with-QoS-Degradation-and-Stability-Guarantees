@@ -55,7 +55,7 @@ chmod +x scripts/*.sh cleanup.sh
 sudo ./scripts/install_dashboard_service.sh
 ```
 
-Open `http://127.0.0.1:8765` in a browser running inside the Ubuntu environment. The systemd service starts at boot, so after this one-time installation, use the browser buttons instead of the controller and topology terminal commands. The service needs root privileges to create Mininet namespaces and configure Open vSwitch. A browser on the Windows host may need VM port forwarding; use the Ubuntu browser if `127.0.0.1` does not reach the guest.
+Open `http://127.0.0.1:8765` in a browser running inside the Ubuntu environment. The systemd service starts at boot, so after this installation, use the browser buttons instead of the controller and topology terminal commands. After pulling a newer dashboard branch, rerun `sudo ./scripts/install_dashboard_service.sh` to restart the service and load the updated files. The service needs root privileges to create Mininet namespaces and configure Open vSwitch. A browser on the Windows host may need VM port forwarding; use the Ubuntu browser if `127.0.0.1` does not reach the guest.
 
 The dashboard displays only process status, controller and monitor log rows, and summaries generated from actual experiment output files. An empty result table means no completed experiment summary is available yet. The interactive network selector offers normal, branch congestion, and shared overload; recovery is a timed scenario in the experiment runner. Stop the interactive network before launching an experiment. Stopping an experiment marks its partial outputs as incomplete.
 

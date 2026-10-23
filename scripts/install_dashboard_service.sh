@@ -31,4 +31,5 @@ WantedBy=multi-user.target
 EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now aa-routing-dashboard.service
+sudo systemctl restart aa-routing-dashboard.service
 echo 'Dashboard service installed and started at http://127.0.0.1:8765'
