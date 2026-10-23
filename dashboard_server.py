@@ -248,8 +248,11 @@ def snapshot():
             "output": list(state["output"]),
             "events": tail_csv("controller_events.csv"),
             "monitoring": tail_csv("monitoring.csv"),
-            "experiment_runs": tail_csv("experiment_runs.csv"),
+            "experiment_runs": tail_csv("experiment_runs.csv", 500),
             "summary": tail_csv("mode_summary.csv", 60),
+            "decisions": tail_csv("decision_summary.csv", 100),
+            "link_summary": tail_csv("link_utilization_summary.csv", 60),
+            "rtt_summary": tail_csv("rtt_mode_summary.csv", 60),
         }
 
 
