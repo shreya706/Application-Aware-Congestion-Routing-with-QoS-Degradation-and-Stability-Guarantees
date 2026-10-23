@@ -80,7 +80,7 @@ svg{width:100%;height:100%}
     <h1>Application-Aware Routing Monitor</h1>
     <div class="sub">Application-Aware Congestion Routing with QoS Degradation and Stability Guarantees</div>
   </div>
-  <div class="badge">36 final scenario runs · 3 repetitions each</div>
+  <div id="runBadge" class="badge">Loading measured runs…</div>
 </header>
 <section class="panel" style="margin-bottom:16px">
   <div class="panel-title"><h2>Live lab controls</h2><span id="connection" class="note">Connecting…</span></div>
@@ -144,8 +144,8 @@ svg{width:100%;height:100%}
     <div class="footer-grid">
       <div class="kpi"><div class="n">3</div><div class="l">Algorithms</div></div>
       <div class="kpi"><div class="n">4</div><div class="l">Scenarios</div></div>
-      <div class="kpi"><div class="n">3</div><div class="l">Repetitions</div></div>
-      <div class="kpi"><div class="n">108</div><div class="l">Flow records</div></div>
+      <div class="kpi"><div id="runCount" class="n">—</div><div class="l">Run rows</div></div>
+      <div class="kpi"><div id="flowCount" class="n">—</div><div class="l">Flow summaries</div></div>
     </div>
   </aside>
 </div>
@@ -176,12 +176,15 @@ function renderCards(){
   });
 }
 function interpretation(){
-  if(mode==="proposed" && scenario==="shared_overload") return "Controlled degradation is visible: bulk falls to 1.38 Mbps while critical and real-time traffic retain 0% loss and 100% QoS satisfaction.";
-  if(mode==="proposed" && scenario==="recovery") return "Protected traffic remains satisfied while bulk capacity begins to recover after congestion clears.";
-  if(mode==="proposed") return "Application-aware routing protects configured QoS targets; all three classes reached 100% QoS satisfaction in this scenario.";
-  if(mode==="load-aware" && scenario==="branch_congestion") return "Load awareness improves bulk throughput, but critical jitter rises sharply because the baseline does not optimize for application-specific QoS.";
-  if(mode==="shortest") return "Shortest-path routing ignores application requirements; protected UDP flows frequently violate packet-loss or jitter limits.";
-  return "Load-aware routing reacts to utilization, but does not explicitly preserve application-specific QoS under shared overload or recovery.";
+  const selected=DATA[mode]?.[scenario];
+  if(!selected) return "No completed measurement is available for this selection.";
+  const critical=selected.critical, realtime=selected.realtime, bulk=selected.bulk;
+  const cLoss=critical.loss==null?"unavailable":fmt(critical.loss,2)+"%";
+  const rLoss=realtime.loss==null?"unavailable":fmt(realtime.loss,2)+"%";
+  const bulkRate=bulk.throughput==null?"unavailable":fmt(bulk.throughput,3)+" Mbps";
+  if(mode==="proposed" && scenario==="shared_overload") return `Bounded degradation is visible in the measured data: bulk throughput is ${bulkRate}, while critical and real-time loss are ${cLoss} and ${rLoss}.`;
+  if(mode==="proposed" && scenario==="recovery") return `During recovery, measured bulk throughput is ${bulkRate}; critical and real-time loss are ${cLoss} and ${rLoss}.`;
+  return `${LABELS[mode]} in ${LABELS[scenario]} measured critical loss ${cLoss}, real-time loss ${rLoss}, and bulk throughput ${bulkRate}.`;
 }
 function chart(el, getter, unit, maxFloor, selectedClass){
   const vals=MODES.map(m=>({m,v:getter(DATA[m][scenario][selectedClass])}));
@@ -200,7 +203,7 @@ function render(){
 
 function buildData(rows){const out={};for(const r of rows||[]){out[r.mode]??={};out[r.mode][r.scenario]??={};out[r.mode][r.scenario][r.class]={throughput:Number(r.throughput_mbps),jitter:r.jitter_ms===''?null:Number(r.jitter_ms),loss:r.lost_percent===''?null:Number(r.lost_percent),qosRate:Number(r.qos_satisfaction_rate)*100};}return out;}
 async function post(url,body={}){const el=document.getElementById("serviceMessage");el.textContent="Working…";try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json();el.textContent=d.message;if(!r.ok)throw Error(d.message);}catch(e){el.textContent="Failed: "+e.message;}refresh();}
-async function refresh(){try{const r=await fetch("/api/status",{cache:"no-store"});if(!r.ok)throw Error("unavailable");const d=await r.json();document.getElementById("connection").textContent="Service connected";document.getElementById("controllerState").textContent=d.controller_running?"Running":"Stopped";document.getElementById("networkState").textContent=d.network_running?"Running":"Stopped";document.getElementById("experimentState").textContent=d.experiment_running?"Running":d.analysis_running?"Analysing":"Idle";document.getElementById("sampleState").textContent=(d.monitoring||[]).length;document.getElementById("activity").textContent=(d.output||[]).join("\n")||"Ready.";const body=document.getElementById("liveRows");body.replaceChildren();for(const x of (d.monitoring||[]).slice(-12).reverse()){const tr=document.createElement("tr");for(const v of [x.switch,x.port,fmt(Number(x.rate_mbps_estimate),3)+" Mbps",fmt(Number(x.utilization_estimate)*100,1)+"%"]) {const td=document.createElement("td");td.textContent=v;td.style.padding="5px";td.style.borderBottom="1px solid var(--line)";tr.append(td);}body.append(tr);}const next=buildData(d.summary);if(Object.keys(next).length){DATA=next;if(!DATA[mode]?.[scenario]){mode="proposed";scenario="shared_overload";}render();}}catch(e){document.getElementById("connection").textContent="Service unavailable";}}
+async function refresh(){try{const r=await fetch("/api/status",{cache:"no-store"});if(!r.ok)throw Error("unavailable");const d=await r.json();document.getElementById("connection").textContent="Service connected";document.getElementById("controllerState").textContent=d.controller_running?"Running":"Stopped";document.getElementById("networkState").textContent=d.network_running?"Running":"Stopped";document.getElementById("experimentState").textContent=d.experiment_running?"Running":d.analysis_running?"Analysing":"Idle";document.getElementById("sampleState").textContent=(d.monitoring||[]).length;document.getElementById("runBadge").textContent=`${(d.experiment_runs||[]).length} recorded scenario runs · measured CSV data`;document.getElementById("runCount").textContent=(d.experiment_runs||[]).length;document.getElementById("flowCount").textContent=(d.summary||[]).length;document.getElementById("activity").textContent=(d.output||[]).join("\n")||"Ready.";const body=document.getElementById("liveRows");body.replaceChildren();for(const x of (d.monitoring||[]).slice(-12).reverse()){const tr=document.createElement("tr");for(const v of [x.switch,x.port,fmt(Number(x.rate_mbps_estimate),3)+" Mbps",fmt(Number(x.utilization_estimate)*100,1)+"%"]) {const td=document.createElement("td");td.textContent=v;td.style.padding="5px";td.style.borderBottom="1px solid var(--line)";tr.append(td);}body.append(tr);}const next=buildData(d.summary);if(Object.keys(next).length){DATA=next;if(!DATA[mode]?.[scenario]){mode="proposed";scenario="shared_overload";}render();}}catch(e){document.getElementById("connection").textContent="Service unavailable";}}
 document.getElementById("startLab").onclick=()=>post("/api/start",{mode:document.getElementById("liveMode").value,scenario:document.getElementById("liveScenario").value});document.getElementById("pingLab").onclick=()=>post("/api/ping");document.getElementById("stopLab").onclick=()=>post("/api/stop");document.getElementById("runExperiment").onclick=()=>post("/api/experiment",{mode:document.getElementById("experimentMode").value,repetitions:document.getElementById("repetitions").value});document.getElementById("stopExperiment").onclick=()=>post("/api/experiment/stop");refresh();setInterval(refresh,2000);
 </script>
 </body>
