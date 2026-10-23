@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-results/*.json
-results/*.csv
-results/*.png
-results/*.log
+results/*
+!results/.gitkeep
+saved_results/

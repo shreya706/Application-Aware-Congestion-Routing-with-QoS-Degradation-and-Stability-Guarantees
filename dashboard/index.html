@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Application-Aware Routing Monitor</title>
+<style>
+:root {
+  --bg:#071018; --panel:#0d1722; --panel2:#101d2a; --line:#1f3142;
+  --text:#eef6ff; --muted:#8ea5b8; --cyan:#33d6ff; --green:#55e59a;
+  --amber:#ffcc66; --red:#ff6b7a; --purple:#a98cff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:
+radial-gradient(circle at 85% 0%,rgba(51,214,255,.09),transparent 28rem),
+radial-gradient(circle at 0% 100%,rgba(169,140,255,.07),transparent 30rem),
+var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+.shell{max-width:1440px;margin:auto;padding:24px}
+header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:20px}
+.eyebrow{font:600 12px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;color:var(--cyan);text-transform:uppercase}
+h1{font-size:30px;margin:7px 0 5px;letter-spacing:-.03em}
+.sub{color:var(--muted);font-size:14px}
+.badge{padding:9px 12px;border:1px solid #23465b;border-radius:999px;color:#bdeeff;background:#0b1c27;font-size:12px;white-space:nowrap}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.control{background:rgba(13,23,34,.9);border:1px solid var(--line);border-radius:16px;padding:14px}
+.control-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
+.segment{display:flex;gap:8px;flex-wrap:wrap}
+button{appearance:none;border:1px solid #2a4052;background:#0b1520;color:#b9c9d8;padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:650}
+button:hover{border-color:#42627b}
+button.active{background:#113246;border-color:#2caed0;color:#eaffff;box-shadow:inset 0 0 0 1px rgba(51,214,255,.15)}
+.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}
+.panel{background:linear-gradient(180deg,rgba(16,29,42,.96),rgba(10,19,28,.96));border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.16)}
+.panel-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.panel-title h2{font-size:15px;margin:0}
+.note{color:var(--muted);font-size:11px}
+.topology{height:330px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+svg{width:100%;height:100%}
+.edge{stroke:#375267;stroke-width:4;fill:none;stroke-linecap:round}
+.edge.branch{stroke:#2a7085}
+.edge.bottleneck{stroke:var(--amber);stroke-width:6}
+.node circle{fill:#0b1924;stroke:#3a5c73;stroke-width:2}
+.node text{fill:#dcecff;font-size:13px;font-weight:700;text-anchor:middle;dominant-baseline:middle}
+.host circle{stroke:#596e80}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:-6px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.card{border:1px solid var(--line);background:#0a151f;border-radius:15px;padding:15px;min-height:145px}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.class-name{font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+.status{font-size:11px;padding:4px 7px;border-radius:999px;font-weight:700}
+.ok{color:#baffd7;background:rgba(85,229,154,.12);border:1px solid rgba(85,229,154,.3)}
+.bad{color:#ffd2d7;background:rgba(255,107,122,.12);border:1px solid rgba(255,107,122,.3)}
+.metric-big{font-size:25px;font-weight:800;letter-spacing:-.03em}
+.metric-big span{font-size:11px;color:var(--muted);font-weight:600;margin-left:4px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;font-size:12px}
+.metrics div{color:var(--muted)}
+.metrics b{display:block;color:var(--text);font-size:13px;margin-top:2px}
+.insight{padding:14px;border-radius:14px;background:linear-gradient(90deg,rgba(51,214,255,.09),rgba(169,140,255,.07));border:1px solid #244154;margin-bottom:14px}
+.insight-k{font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:.12em}
+.insight-v{margin-top:5px;font-weight:720;font-size:14px;line-height:1.4}
+.compare{display:grid;gap:15px}
+.chart-row{display:grid;grid-template-columns:92px 1fr 58px;gap:10px;align-items:center;font-size:12px}
+.bar-bg{height:10px;background:#111f2b;border-radius:999px;overflow:hidden}
+.bar{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--cyan),#48efbd)}
+.bar.red{background:linear-gradient(90deg,#ff7e88,#ffb65f)}
+.bar.purple{background:linear-gradient(90deg,#9e8cff,#5cbcff)}
+.value{text-align:right;font-variant-numeric:tabular-nums}
+.section-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin:18px 0 9px}
+.footer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.kpi{padding:13px;border-radius:13px;background:#0a151f;border:1px solid var(--line)}
+.kpi .n{font-size:19px;font-weight:800} .kpi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+@media(max-width:900px){.grid,.controls{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr 1fr}header{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div>
+    <div class="eyebrow">SDN Experimental Dashboard</div>
+    <h1>Application-Aware Routing Monitor</h1>
+    <div class="sub">Application-Aware Congestion Routing with QoS Degradation and Stability Guarantees</div>
+  </div>
+  <div id="runBadge" class="badge">Loading measured runs…</div>
+</header>
+<section class="panel" style="margin-bottom:16px">
+  <div class="panel-title"><h2>Live lab controls</h2><span id="connection" class="note">Connecting…</span></div>
+  <div class="controls" style="margin-bottom:0">
+    <div class="control"><div class="control-label">Interactive network</div><div class="segment"><select id="liveMode"><option value="proposed">Proposed</option><option value="shortest">Shortest</option><option value="load-aware">Load-aware</option></select><select id="liveScenario"><option value="normal">Normal</option><option value="branch_congestion">Branch congestion</option><option value="shared_overload">Shared overload</option></select><button id="startLab">Start</button><button id="pingLab">Ping all</button><button id="stopLab">Stop</button></div></div>
+    <div class="control"><div class="control-label">Full experiment</div><div class="segment"><select id="experimentMode"><option value="proposed">Proposed</option><option value="shortest">Shortest</option><option value="load-aware">Load-aware</option></select><input id="repetitions" type="number" min="1" max="10" value="1" style="width:70px"><button id="runExperiment">Run</button><button id="stopExperiment">Stop</button></div></div>
+  </div><div id="serviceMessage" class="note" style="margin-top:10px">Waiting for service…</div>
+  <div class="footer-grid"><div class="kpi"><div id="controllerState" class="n">—</div><div class="l">Controller</div></div><div class="kpi"><div id="networkState" class="n">—</div><div class="l">Network</div></div><div class="kpi"><div id="experimentState" class="n">—</div><div class="l">Experiment</div></div><div class="kpi"><div id="sampleState" class="n">0</div><div class="l">Live samples</div></div></div>
+</section>
+
+<section class="panel" style="border-color:#2a7085;background:#0b202b"><div class="panel-title"><h2>Use this in the viva</h2><span class="note">Two separate demonstrations</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:18px"><div><b style="color:var(--cyan)">1 · Compare completed experiments</b><p class="sub">Use the Routing algorithm and Experiment scenario buttons below. These graphs are saved measurements; they update only after a full experiment finishes.</p></div><div><b style="color:var(--green)">2 · Show the live controller</b><p class="sub">Start the network, click Ping all, and show that switches connect. Link rates stay near zero until real traffic such as an experiment is running.</p></div></div></section>
+<div class="controls">
+  <div class="control">
+    <div class="control-label">Routing algorithm</div>
+    <div class="segment" id="modeBtns"></div>
+  </div>
+  <div class="control">
+    <div class="control-label">Experiment scenario</div>
+    <div class="segment" id="scenarioBtns"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div>
+    <section class="panel">
+      <div class="panel-title"><h2>Network topology</h2><span class="note">Two candidate paths · shared S4–S5 bottleneck</span></div>
+      <div class="topology">
+        <svg viewBox="0 0 900 330" aria-label="SDN topology diagram">
+          <path class="edge" d="M145 75 L300 165"/><path class="edge" d="M145 165 L300 165"/><path class="edge" d="M145 255 L300 165"/>
+          <path class="edge branch" d="M300 165 L460 95 L620 165"/><path class="edge branch" d="M300 165 L460 235 L620 165"/>
+          <path class="edge bottleneck" d="M620 165 L755 165"/><path class="edge" d="M755 165 L850 165"/>
+          <g class="node host"><circle cx="145" cy="75" r="27"/><text x="145" y="75">h1</text></g><g class="node host"><circle cx="145" cy="165" r="27"/><text x="145" y="165">h2</text></g><g class="node host"><circle cx="145" cy="255" r="27"/><text x="145" y="255">h3</text></g>
+          <g class="node"><circle cx="300" cy="165" r="29"/><text x="300" y="165">S1</text></g>
+          <g class="node"><circle cx="460" cy="95" r="29"/><text x="460" y="95">S2</text></g>
+          <g class="node"><circle cx="460" cy="235" r="29"/><text x="460" y="235">S3</text></g>
+          <g class="node"><circle cx="620" cy="165" r="29"/><text x="620" y="165">S4</text></g>
+          <g class="node"><circle cx="755" cy="165" r="29"/><text x="755" y="165">S5</text></g>
+          <g class="node host"><circle cx="850" cy="165" r="27"/><text x="850" y="165">h4</text></g>
+          <text x="460" y="52" fill="#6fcfe8" font-size="12" text-anchor="middle">Path A</text>
+          <text x="460" y="290" fill="#6fcfe8" font-size="12" text-anchor="middle">Path B</text>
+          <text x="687" y="145" fill="#ffcc66" font-size="11" text-anchor="middle">shared bottleneck</text>
+        </svg>
+      </div>
+      <div class="legend"><span><i class="dot" style="background:#2a7085"></i>candidate routing paths</span><span><i class="dot" style="background:#ffcc66"></i>S4–S5 controlled bottleneck</span></div>
+    </section>
+    <div class="cards" id="cards"></div>
+  </div>
+
+  <aside class="panel">
+    <div class="panel-title"><h2>Saved experiment comparison</h2><span class="note">Not live · calculated after completed runs</span></div>
+    <div class="insight"><div class="insight-k">What is happening</div><div class="insight-v" id="insight"></div></div>
+
+    <div class="section-label">Critical packet loss · selected scenario</div>
+    <div class="compare" id="lossChart"></div>
+
+    <div class="section-label">Realtime packet loss · selected scenario</div>
+    <div class="compare" id="rtLossChart"></div>
+
+    <div class="section-label">Bulk throughput · selected scenario</div>
+    <div class="compare" id="bulkChart"></div>
+
+    <div class="footer-grid">
+      <div class="kpi"><div class="n">3</div><div class="l">Algorithms</div></div>
+      <div class="kpi"><div class="n">4</div><div class="l">Scenarios</div></div>
+      <div class="kpi"><div id="runCount" class="n">—</div><div class="l">Run rows</div></div>
+      <div class="kpi"><div id="flowCount" class="n">—</div><div class="l">Flow summaries</div></div>
+    </div>
+  </aside>
+</div>
+</div>
+<section class="panel" style="margin-top:16px"><div class="panel-title"><h2>Live link monitor</h2><span class="note">Changes only while traffic is flowing</span></div><div class="insight"><div class="insight-k">How to read it</div><div class="insight-v">Rate is current traffic on the link. Utilisation is rate ÷ link capacity. 0% means the network is idle, not broken.</div></div><div style="overflow:auto;max-height:260px"><table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr><th>Human-readable link</th><th>Rate</th><th>Utilisation</th><th>Meaning</th></tr></thead><tbody id="liveRows"></tbody></table></div><details style="margin-top:12px"><summary class="note" style="cursor:pointer">Technical Mininet output (only open if asked)</summary><pre id="activity" style="white-space:pre-wrap;max-height:180px;overflow:auto;color:var(--muted)">Ready.</pre></details></section>
+
+<script>
+let DATA={};
+const PORT_NAMES={"1:1":"h1 → S1","1:2":"h2 → S1","1:3":"h3 → S1","1:4":"S1 → S2 (Path A)","1:5":"S1 → S3 (Path B)","2:1":"S2 → S1","2:2":"S2 → S4 (Path A)","3:1":"S3 → S1","3:2":"S3 → S4 (Path B)","4:1":"S4 → S2","4:2":"S4 → S3","4:3":"S4 → S5 (shared bottleneck)","5:1":"S5 → h4","5:2":"S5 → S4"};
+const MODES=["shortest","load-aware","proposed"];
+const SCENARIOS=["normal","branch_congestion","shared_overload","recovery"];
+const LABELS={"shortest":"Shortest","load-aware":"Load-aware","proposed":"Proposed","normal":"Normal","branch_congestion":"Branch congestion","shared_overload":"Shared overload","recovery":"Recovery"};
+let mode="proposed", scenario="shared_overload";
+
+function btns(el, items, current, onClick) {
+  const root=document.getElementById(el); root.innerHTML="";
+  items.forEach(x=>{ const b=document.createElement("button"); b.textContent=LABELS[x]; b.className=x===current?"active":""; b.onclick=()=>onClick(x); root.appendChild(b); });
+}
+function fmt(v,d=2){ return v==null ? "N/A" : Number(v).toFixed(d); }
+function renderCards(){
+  const root=document.getElementById("cards"); root.innerHTML="";
+  ["critical","realtime","bulk"].forEach(cls=>{
+    const x=DATA[mode][scenario][cls], ok=x.qosRate===100;
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML=`<div class="card-head"><div class="class-name">${cls==="realtime"?"Real-time":cls}</div><span class="status ${ok?"ok":"bad"}">${ok?"QoS ✓":"QoS ✕"}</span></div>
+      <div class="metric-big">${fmt(x.throughput,3)}<span>Mbps</span></div>
+      <div class="metrics"><div>Packet loss<b>${x.loss==null?"TCP / N.A.":fmt(x.loss,2)+"%"}</b></div><div>Jitter<b>${x.jitter==null?"TCP / N.A.":fmt(x.jitter,2)+" ms"}</b></div><div>QoS success<b>${fmt(x.qosRate,1)}%</b></div><div>Traffic<b>${cls==="bulk"?"TCP/5003":cls==="critical"?"UDP/5001":"UDP/5002"}</b></div></div>`;
+    root.appendChild(card);
+  });
+}
+function interpretation(){
+  const selected=DATA[mode]?.[scenario];
+  if(!selected) return "No completed measurement is available for this selection.";
+  const critical=selected.critical, realtime=selected.realtime, bulk=selected.bulk;
+  const cLoss=critical.loss==null?"unavailable":fmt(critical.loss,2)+"%";
+  const rLoss=realtime.loss==null?"unavailable":fmt(realtime.loss,2)+"%";
+  const bulkRate=bulk.throughput==null?"unavailable":fmt(bulk.throughput,3)+" Mbps";
+  if(mode==="proposed" && scenario==="shared_overload") return `Bounded degradation is visible in the measured data: bulk throughput is ${bulkRate}, while critical and real-time loss are ${cLoss} and ${rLoss}.`;
+  if(mode==="proposed" && scenario==="recovery") return `During recovery, measured bulk throughput is ${bulkRate}; critical and real-time loss are ${cLoss} and ${rLoss}.`;
+  return `${LABELS[mode]} in ${LABELS[scenario]} measured critical loss ${cLoss}, real-time loss ${rLoss}, and bulk throughput ${bulkRate}.`;
+}
+function chart(el, getter, unit, maxFloor, selectedClass){
+  const vals=MODES.map(m=>({m,v:getter(DATA[m][scenario][selectedClass])}));
+  const max=Math.max(maxFloor,...vals.map(x=>x.v||0));
+  const root=document.getElementById(el); root.innerHTML="";
+  vals.forEach((x,i)=>{const row=document.createElement("div"); row.className="chart-row"; const width=x.v==null?0:Math.max(2,(x.v/max)*100); row.innerHTML=`<div>${LABELS[x.m]}</div><div class="bar-bg"><div class="bar ${i===0?"red":i===1?"purple":""}" style="width:${width}%"></div></div><div class="value">${x.v==null?"N/A":fmt(x.v,2)+unit}</div>`;root.appendChild(row);});
+}
+function render(){
+  btns("modeBtns",MODES,mode,x=>{mode=x;render();});
+  btns("scenarioBtns",SCENARIOS,scenario,x=>{scenario=x;render();});
+  renderCards(); document.getElementById("insight").textContent=interpretation();
+  chart("lossChart",x=>x.loss,"%",25,"critical");
+  chart("rtLossChart",x=>x.loss,"%",20,"realtime");
+  chart("bulkChart",x=>x.throughput," Mbps",7,"bulk");
+}
+
+function buildData(rows){const out={};for(const r of rows||[]){out[r.mode]??={};out[r.mode][r.scenario]??={};out[r.mode][r.scenario][r.class]={throughput:Number(r.throughput_mbps),jitter:r.jitter_ms===''?null:Number(r.jitter_ms),loss:r.lost_percent===''?null:Number(r.lost_percent),qosRate:Number(r.qos_satisfaction_rate)*100};}return out;}
+async function post(url,body={}){const el=document.getElementById("serviceMessage");el.textContent="Working…";try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json();el.textContent=d.message;if(!r.ok)throw Error(d.message);}catch(e){el.textContent="Failed: "+e.message;}refresh();}
+async function refresh(){try{const r=await fetch("/api/status",{cache:"no-store"});if(!r.ok)throw Error("unavailable");const d=await r.json();document.getElementById("connection").textContent="Service connected";document.getElementById("controllerState").textContent=d.controller_running?"Running":"Stopped";document.getElementById("networkState").textContent=d.network_running?"Running":"Stopped";document.getElementById("experimentState").textContent=d.experiment_running?"Running":d.analysis_running?"Analysing":"Idle";document.getElementById("sampleState").textContent=(d.monitoring||[]).length;document.getElementById("runBadge").textContent=`${(d.experiment_runs||[]).length} recorded scenario runs · measured CSV data`;document.getElementById("runCount").textContent=(d.experiment_runs||[]).length;document.getElementById("flowCount").textContent=(d.summary||[]).length;document.getElementById("activity").textContent=(d.output||[]).join("\n")||"Ready.";const body=document.getElementById("liveRows");body.replaceChildren();for(const x of (d.monitoring||[]).filter(x=>String(x.port)!=="4294967294").slice(-12).reverse()){const tr=document.createElement("tr");const util=Number(x.utilization_estimate)*100,link=PORT_NAMES[`${x.switch}:${x.port}`]||`Switch ${x.switch}, port ${x.port}`;for(const v of [link,fmt(Number(x.rate_mbps_estimate),3)+" Mbps",fmt(util,1)+"%",util<1?"Idle":util<70?"Normal traffic":util<90?"Busy":"Congested"]) {const td=document.createElement("td");td.textContent=v;td.style.padding="5px";td.style.borderBottom="1px solid var(--line)";tr.append(td);}body.append(tr);}const next=buildData(d.summary);if(Object.keys(next).length){DATA=next;if(!DATA[mode]?.[scenario]){mode="proposed";scenario="shared_overload";}render();}}catch(e){document.getElementById("connection").textContent="Service unavailable";}}
+document.getElementById("startLab").onclick=()=>post("/api/start",{mode:document.getElementById("liveMode").value,scenario:document.getElementById("liveScenario").value});document.getElementById("pingLab").onclick=()=>post("/api/ping");document.getElementById("stopLab").onclick=()=>post("/api/stop");document.getElementById("runExperiment").onclick=()=>post("/api/experiment",{mode:document.getElementById("experimentMode").value,repetitions:document.getElementById("repetitions").value});document.getElementById("stopExperiment").onclick=()=>post("/api/experiment/stop");refresh();setInterval(refresh,2000);
+</script>
+</body>
+</html>

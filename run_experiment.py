@@ -5,6 +5,10 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 
 
+def progress(message):
+    print(f"[experiment] {message}", flush=True)
+
+
 def require_linux_tools():
     if sys.platform != "linux":
         raise SystemExit("Live experiments require Ubuntu/Linux with Mininet and OVS. This host is Windows; use the documented Ubuntu VM steps.")
@@ -14,6 +18,9 @@ def require_linux_tools():
 
 def run(args):
     require_linux_tools()
+    progress("cleaning stale Mininet interfaces from earlier interrupted runs")
+    subprocess.run(["mn", "-c"], check=True, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.STDOUT)
     sys.path.insert(0,str(ROOT))
     from mininet.net import Mininet
     from topology import build
@@ -22,11 +29,14 @@ def run(args):
     results=ROOT/"results"; results.mkdir(exist_ok=True)
     outfile=results/"experiment_runs.csv"
     exists=outfile.exists()
+    duration=config["experiments"]["duration_seconds"]
+    progress(f"mode={args.mode}; {args.repetitions} repetition(s); four scenarios; about {args.repetitions * 4 * (duration + 10)} seconds")
     with outfile.open("a",newline="") as f:
         writer=csv.DictWriter(f,fieldnames=["timestamp","mode","scenario","repeat","status","note"])
         if not exists: writer.writeheader()
         for repeat in range(1,args.repetitions+1):
             for scenario in ("normal","branch_congestion","shared_overload","recovery"):
+                progress(f"starting {scenario} ({repeat}/{args.repetitions})")
                 env=os.environ.copy(); env["AA_MODE"]=args.mode
                 env["AA_SCENARIO"]=scenario
                 controller_log=(results/f"controller_{args.mode}_{scenario}_{repeat}.log").open("w")
@@ -37,9 +47,11 @@ def run(args):
                     if controller.poll() is not None:
                         raise RuntimeError(f"OS-Ken exited before Mininet start; inspect {controller_log.name}")
                     net=build(config,scenario)
+                    progress(f"{scenario}: topology started; checking reachability")
                     loss=net.pingAll()
                     if loss > 0:
                         raise RuntimeError(f"pingall reported {loss:.1f}% loss before traffic run")
+                    progress(f"{scenario}: reachability passed; running traffic for {duration} seconds")
                     receiver=net.get("h4")
                     servers=[]
                     for port in (5001,5002,5003):
@@ -57,6 +69,7 @@ def run(args):
                         clients.append(host.popen(cmd,stdout=open(output_path,"w"),stderr=subprocess.STDOUT))
                     recovery_errors=[]
                     if scenario == "recovery":
+                        progress(f"{scenario}: bottleneck will be restored after {duration / 2:g} seconds")
                         def restore_link():
                             try:
                                 time.sleep(config["experiments"]["duration_seconds"]/2)
@@ -86,8 +99,17 @@ def run(args):
                     if control_failures:
                         raise RuntimeError("Controller/OVS operation failed: "+", ".join(control_failures))
                     writer.writerow({"timestamp":time.time(),"mode":args.mode,"scenario":scenario,"repeat":repeat,"status":"completed","note":"Live Mininet run; see per-run iperf and ping files plus controller log"})
+                    f.flush()
+                    progress(f"completed {scenario} ({repeat}/{args.repetitions})")
                 except Exception as exc:
                     writer.writerow({"timestamp":time.time(),"mode":args.mode,"scenario":scenario,"repeat":repeat,"status":"failed","note":str(exc)})
+                    f.flush()
+                    progress(f"FAILED {scenario}: {exc}")
+                    raise
+                except KeyboardInterrupt:
+                    writer.writerow({"timestamp":time.time(),"mode":args.mode,"scenario":scenario,"repeat":repeat,"status":"interrupted","note":"Stopped by user before the timed scenario completed"})
+                    f.flush()
+                    progress(f"interrupted {scenario}; partial output files are not valid results")
                     raise
                 finally:
                     if net is not None: net.stop()
@@ -95,7 +117,7 @@ def run(args):
                     try: controller.wait(timeout=5)
                     except subprocess.TimeoutExpired: controller.kill(); controller.wait()
                     controller_log.close()
-    print(f"Experiment run index: {outfile}")
+    progress(f"all scenarios completed; run index: {outfile}")
 
 
 if __name__=="__main__":

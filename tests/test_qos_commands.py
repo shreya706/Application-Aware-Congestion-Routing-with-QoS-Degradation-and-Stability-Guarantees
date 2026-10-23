@@ -6,7 +6,7 @@ import qos
 
 class OVSQueueCommandTests(unittest.TestCase):
     def test_reads_parent_capacity_from_ovsdb(self):
-        with patch("qos._run", side_effect=[SimpleNamespace(stdout="qos-id\n"), SimpleNamespace(stdout="10000000\n")]) as run:
+        with patch("qos._run", side_effect=[SimpleNamespace(stdout="qos-id\n"), SimpleNamespace(stdout='"10000000"\n')]) as run:
             self.assertEqual(qos.get_qos_capacity("s4-eth3"),10.0)
             self.assertEqual(run.call_count,2)
 
@@ -27,6 +27,7 @@ class OVSQueueCommandTests(unittest.TestCase):
         responses=["qos-id\n","[]\n","","qos-id\n","queue-id\n"]
         with patch("qos._run", side_effect=[SimpleNamespace(stdout=value) for value in responses]) as run:
             qos.configure_reserved_queue("s4-eth3",2,1,2)
+            self.assertIn("--if-exists", run.call_args_list[1].args[0])
             create=run.call_args_list[2].args[0]
             self.assertIn("other-config:min-rate=1000000",create)
             self.assertIn("other-config:max-rate=2000000",create)

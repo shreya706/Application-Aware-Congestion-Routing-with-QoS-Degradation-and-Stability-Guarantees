@@ -5,12 +5,13 @@ from pathlib import Path
 import networkx as nx
 from os_ken.base import app_manager
 from os_ken.controller import ofp_event
-from os_ken.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER, set_ev_cls
+from os_ken.controller.handler import CONFIG_DISPATCHER, DEAD_DISPATCHER, MAIN_DISPATCHER, set_ev_cls
 from os_ken.ofproto import ofproto_v1_3
 from os_ken.lib.packet import packet, ethernet, ipv4, arp, udp, tcp, ether_types
 from routing import select_path
 from monitor import CounterSample, rate_mbps
-from policy import FlowState, route_decision, degrade_bulk, RecoveryMemory, classify_transport
+from policy import (FlowState, RecoveryMemory, classify_iperf_control,
+                    classify_transport, degrade_bulk, route_decision)
 from qos import configure_bulk_queue, configure_reserved_queue, get_qos_capacity
 
 ROOT = Path(__file__).resolve().parent
@@ -48,9 +49,10 @@ class ApplicationAwareController(app_manager.OSKenApp):
 
     def _open_logs(self):
         (ROOT / "results").mkdir(exist_ok=True)
-        self.events = open(ROOT / "results/controller_events.csv", "a", newline="", buffering=1)
-        self.event_writer = csv.writer(self.events)
-        if self.events.tell() == 0: self.event_writer.writerow(["timestamp","mode","scenario","decision","class","src","dst","path","reason","bulk_mbps"])
+        # OSKenApp already owns ``self.events`` as its internal event queue.
+        self.events_file = open(ROOT / "results/controller_events.csv", "a", newline="", buffering=1)
+        self.event_writer = csv.writer(self.events_file)
+        if self.events_file.tell() == 0: self.event_writer.writerow(["timestamp","mode","scenario","decision","class","src","dst","path","reason","bulk_mbps"])
         self.monitor = open(ROOT / "results/monitoring.csv", "a", newline="", buffering=1)
         self.monitor_writer = csv.writer(self.monitor)
         if self.monitor.tell() == 0: self.monitor_writer.writerow(["timestamp","mode","scenario","switch","port","rate_mbps_estimate","capacity_mbps_used_for_utilization","utilization_estimate"])
@@ -97,6 +99,17 @@ class ApplicationAwareController(app_manager.OSKenApp):
         sport=udp_h.src_port if udp_h else tcp_h.src_port if tcp_h else 0
         dport=udp_h.dst_port if udp_h else tcp_h.dst_port if tcp_h else 0
         cls=self._classify(proto,dport) or self._classify(proto,sport)
+        if cls is None:
+            control_cls=(classify_iperf_control(self.config["applications"],proto,dport)
+                         or classify_iperf_control(self.config["applications"],proto,sport))
+            if control_cls and ip.src in HOST_SWITCH and ip.dst in HOST_SWITCH:
+                try: path=nx.shortest_path(self._active_graph(),HOST_SWITCH[ip.src],HOST_SWITCH[ip.dst])
+                except (nx.NetworkXNoPath,nx.NodeNotFound): return
+                # iperf3 UDP uses TCP on the same port for setup/results. Forward it,
+                # but do not count it as application demand or assign a QoS queue.
+                self._install_bidirectional(path,ip.src,ip.dst,proto,sport,dport,None)
+                self._packet_out(dp,msg,self._next_port(path,dp.id,ip.src,ip.dst))
+                return
         if cls is None and proto == 1 and ip.src in HOST_SWITCH and ip.dst in HOST_SWITCH:
             try: path=nx.shortest_path(self._active_graph(),HOST_SWITCH[ip.src],HOST_SWITCH[ip.dst])
             except (nx.NetworkXNoPath,nx.NodeNotFound): return
@@ -231,7 +244,9 @@ class ApplicationAwareController(app_manager.OSKenApp):
             policy=self.config["applications"][cls]
             active_policy=dict(policy)
             if cls == "bulk": active_policy["requested_mbps"] = self.bulk_rate
-            candidate=self._choose_path(HOST_SWITCH[src],HOST_SWITCH[dst],active_policy)
+            # Port counters already include active traffic. Reusing the admission-time
+            # expected-demand map here would count those flows a second time.
+            candidate=self._choose_path(HOST_SWITCH[src],HOST_SWITCH[dst],active_policy,{})
             if candidate is None: self._log("QOS_INFEASIBLE",cls,src,dst,state.path,"no path"); continue
             if any(sw not in self.datapaths for sw in state.path):
                 if candidate.feasible:
@@ -244,7 +259,8 @@ class ApplicationAwareController(app_manager.OSKenApp):
             current_score=0.0
             # Current path estimate uses same scoring function through select_path's helper.
             from routing import estimate_path
-            current=estimate_path(self.graph,list(state.path),active_policy,active_policy["requested_mbps"],self.expected)
+            current=estimate_path(self.graph,list(state.path),active_policy,
+                                  active_policy["requested_mbps"],{})
             current_score=current.score
             if self.mode == "proposed" and not candidate.feasible and cls == "bulk":
                 self.recovery.clear_intervals=0
@@ -306,25 +322,35 @@ class ApplicationAwareController(app_manager.OSKenApp):
             if decision=="REROUTE": self._install_bidirectional(state.path,src,dst,proto,sport,dport,cls)
             self._log(decision,cls,src,dst,state.path,reason)
 
-    def _choose_path(self, source, destination, policy):
-        graph=self._active_graph()
+    def _choose_path(self, source, destination, policy, expected_load=None):
+        from routing import estimate_path
+
+        graph = self._active_graph()
+        expected = self.expected if expected_load is None else expected_load
+
         if self.mode == "shortest":
             try:
-                from routing import estimate_path
-                path=nx.shortest_path(graph,source,destination)
-                return estimate_path(graph,path,policy,policy["requested_mbps"],{})
-            except (nx.NetworkXNoPath,nx.NodeNotFound): return None
+                path = nx.shortest_path(graph, source, destination)
+                return estimate_path(
+                    graph,
+                    path,
+                    policy,
+                    policy["requested_mbps"],
+                    {}
+                )
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                return None
         if self.mode == "load-aware":
             paths=[]
             try: candidate_paths=nx.shortest_simple_paths(graph,source,destination,weight="delay_ms")
             except (nx.NetworkXNoPath,nx.NodeNotFound): return None
             for p in candidate_paths:
-                est=estimate_path(graph,p,policy,policy["requested_mbps"],self.expected); paths.append(est)
+                est=estimate_path(graph,p,policy,policy["requested_mbps"],expected); paths.append(est)
                 if len(paths)>=self.config["routing"]["candidate_paths"]: break
             return min(paths,key=lambda x:x.utilization) if paths else None
-        return select_path(graph,source,destination,policy,policy["requested_mbps"],self.expected,count=self.config["routing"]["candidate_paths"])
+        return select_path(graph,source,destination,policy,policy["requested_mbps"],expected,count=self.config["routing"]["candidate_paths"])
 
-    @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, CONFIG_DISPATCHER])
+    @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def state_change(self, ev):
         dp=ev.datapath
         if ev.state==MAIN_DISPATCHER:
@@ -333,11 +359,13 @@ class ApplicationAwareController(app_manager.OSKenApp):
                 self.last_stats["poll_started"]=True
                 from os_ken.lib import hub
                 self._poller=hub.spawn(self._poll_stats)
-        elif ev.state==CONFIG_DISPATCHER:
+        elif ev.state==DEAD_DISPATCHER:
             self.datapaths.pop(dp.id,None)
             self.qos_ready=False
             for key in [key for key in self.samples if key[0]==dp.id]: self.samples.pop(key,None)
             for edge_key in [key for key in self.edge_rates if dp.id in key]: self.edge_rates.pop(edge_key,None)
+            if dp.id not in self.graph:
+                return
             for neighbor in self.graph.neighbors(dp.id):
                 self.graph[dp.id][neighbor]["rate_mbps"]=self.edge_rates.get((neighbor,dp.id),0.0)
 
