@@ -57,7 +57,7 @@ sudo ./scripts/install_dashboard_service.sh
 
 Open `http://127.0.0.1:8765` in a browser running inside the Ubuntu environment. The systemd service starts at boot, so after this one-time installation, use the browser buttons instead of the controller and topology terminal commands. The service needs root privileges to create Mininet namespaces and configure Open vSwitch. A browser on the Windows host may need VM port forwarding; use the Ubuntu browser if `127.0.0.1` does not reach the guest.
 
-The comparison charts still contain embedded static sample figures. The live status and log panel is separate and reads the controller's CSV files. Do not treat the static charts as measurements from the current run. Stop the interactive network before launching an experiment. Stopping an experiment marks its partial outputs as incomplete.
+The dashboard displays only process status, controller and monitor log rows, and summaries generated from actual experiment output files. An empty result table means no completed experiment summary is available yet. The interactive network selector offers normal, branch congestion, and shared overload; recovery is a timed scenario in the experiment runner. Stop the interactive network before launching an experiment. Stopping an experiment marks its partial outputs as incomplete.
 
 To remove the service later, run `sudo systemctl disable --now aa-routing-dashboard.service` and remove `/etc/systemd/system/aa-routing-dashboard.service`.
 

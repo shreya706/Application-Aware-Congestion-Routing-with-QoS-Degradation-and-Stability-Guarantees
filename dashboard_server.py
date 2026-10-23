@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent
 HOST = "127.0.0.1"
 PORT = 8765
 MODES = {"proposed", "shortest", "load-aware"}
-SCENARIOS = {"normal", "branch_congestion", "shared_overload", "recovery"}
+LIVE_SCENARIOS = {"normal", "branch_congestion", "shared_overload"}
 state_lock = threading.RLock()
 state = {
     "controller": None,
@@ -100,7 +100,7 @@ def generate_summary():
 
 
 def start_lab(mode, scenario):
-    if mode not in MODES or scenario not in SCENARIOS:
+    if mode not in MODES or scenario not in LIVE_SCENARIOS:
         raise ValueError("Choose a supported mode and scenario.")
     with state_lock:
         if alive(state["experiment"]):

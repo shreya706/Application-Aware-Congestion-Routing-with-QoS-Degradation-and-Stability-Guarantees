@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Mininet topology: three senders, two branches, shared S4-S5 bottleneck."""
 import json
+import os
 from pathlib import Path
 from mininet.net import Mininet
 from mininet.node import OVSSwitch, RemoteController
@@ -42,7 +43,8 @@ def build(config, scenario="normal"):
 def main():
     setLogLevel("info")
     config = json.loads((ROOT / "config.json").read_text())
-    net = build(config)
+    scenario = os.environ.get("AA_SCENARIO", "normal")
+    net = build(config, scenario)
     info("*** Topology ready. Try: pingall\n")
     try: CLI(net)
     finally:
