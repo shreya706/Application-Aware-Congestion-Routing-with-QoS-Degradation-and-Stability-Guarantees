@@ -13,6 +13,17 @@ def classify_transport(applications, protocol_number, port):
     return None
 
 
+def classify_iperf_control(applications, protocol_number, port):
+    """Identify TCP control channels for configured UDP iperf3 test flows."""
+    if protocol_number != 6:
+        return None
+    for name, profile in applications.items():
+        if (profile["protocol"] == "udp"
+                and int(profile["destination_port"]) == int(port)):
+            return name
+    return None
+
+
 @dataclass
 class FlowState:
     path: tuple

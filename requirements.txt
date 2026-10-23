@@ -1,4 +1,5 @@
-os-ken>=4,<5
+# OS-Ken 4 removed the osken-manager launcher used by this project.
+os-ken==3.1.1
 networkx>=3.2,<4
 pandas>=2.1,<4
 matplotlib>=3.8,<4

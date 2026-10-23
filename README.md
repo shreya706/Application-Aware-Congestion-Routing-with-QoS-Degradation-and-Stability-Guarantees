@@ -44,7 +44,7 @@ chmod +x scripts/*.sh cleanup.sh
 ./scripts/install_dependencies.sh
 ```
 
-The apt packages (Mininet, OVS, iperf3, ping, Python and venv) require `sudo`; Python packages install into `.venv` without sudo. `requirements.txt` constrains OS-Ken, NetworkX, pandas, and Matplotlib to compatible major versions. If distro Mininet is not available, install it from the official Mininet project instructions for that Ubuntu release, then rerun the Python venv steps.
+The apt packages (Mininet, OVS, iperf3, ping, Python and venv) require `sudo`; Python packages install into `.venv` without sudo. `requirements.txt` pins OS-Ken 3.1.1 because this project uses the `osken-manager` launcher, which OS-Ken 4 removed. NetworkX, pandas, and Matplotlib use compatible major-version constraints. If distro Mininet is not available, install it from the official Mininet project instructions for that Ubuntu release, then rerun the Python venv steps.
 
 ## Run the network
 
@@ -60,7 +60,7 @@ source .venv/bin/activate
 Terminal 2 starts Mininet (requires root to create namespaces and OVS ports):
 
 ```bash
-sudo -E .venv/bin/python topology.py
+sudo env -u PYTHONPATH -u PYTHONHOME /usr/bin/python3 topology.py
 ```
 
 At the Mininet prompt, check connectivity and inspect the switches:
@@ -80,12 +80,12 @@ The controller writes `results/controller_events.csv` and `results/monitoring.cs
 The experiment runner checks that it is on Linux with Mininet, OVS, iperf3 and ping. Run one mode at a time from a root-enabled terminal. It starts an OS-Ken controller for each scenario, launches the three clients concurrently, and captures ping output:
 
 ```bash
-sudo -E .venv/bin/python run_experiment.py --mode proposed --repetitions 3
-sudo -E .venv/bin/python run_experiment.py --mode shortest --repetitions 3
-sudo -E .venv/bin/python run_experiment.py --mode load-aware --repetitions 3
+sudo env -u PYTHONPATH -u PYTHONHOME /usr/bin/python3 run_experiment.py --mode proposed --repetitions 3
+sudo env -u PYTHONPATH -u PYTHONHOME /usr/bin/python3 run_experiment.py --mode shortest --repetitions 3
+sudo env -u PYTHONPATH -u PYTHONHOME /usr/bin/python3 run_experiment.py --mode load-aware --repetitions 3
 ```
 
-Raw iperf JSON files are saved in `results/`; `python analyse.py` writes `summary.csv` and metric graphs. The branch case limits Path A links; shared overload lowers the OVS parent queue ceiling; recovery raises that OVS ceiling halfway through the traffic interval. The controller reads the active parent ceiling from OVSDB for capacity estimates. Compare the measured files and controller logs. The runner has not been executed on Ubuntu in this session, so inspect its outputs and verify queue counters before presenting any performance conclusion. OVS and Mininet can compete over Linux traffic-control qdiscs; verify both the rate limit and configured link delay on the shared S4 egress before relying on measured RTT. [Mininet OVS switch notes](https://mininet.org/api/classmininet_1_1node_1_1OVSSwitch.html)
+Raw iperf JSON files are saved in `results/`; `python analyse.py` writes `summary.csv` and metric graphs. The branch case limits Path A links; shared overload lowers the OVS parent queue ceiling; recovery raises that OVS ceiling halfway through the traffic interval. The controller reads the active parent ceiling from OVSDB for capacity estimates. Compare the measured files and controller logs. OVS QoS owns the S4 egress qdisc, so the emulated shared link omits a competing Mininet netem qdisc. The configured bottleneck delay remains a controller path-cost input and must not be presented as a measured S4-S5 delay guarantee. [Mininet OVS switch notes](https://mininet.org/api/classmininet_1_1node_1_1OVSSwitch.html)
 
 To stop the network, exit the Mininet CLI with `exit` and stop the controller with Ctrl-C. Reset Mininet and this demo's QoS attachment:
 
@@ -106,4 +106,4 @@ python -m compileall -q .
 
 These tests exercise classification configuration, candidate path selection, hysteresis/CRM, and bounded degradation/recovery without a live network. Live acceptance still requires the Ubuntu VM: establish host connectivity, verify controller-installed flows, inspect queue counters and rate limiting, run each congestion/recovery case, and inspect cleanup. This Windows session cannot claim those checks or experimental outcomes. The current fixed topology and single receiver are deliberate lab limits; route update consistency, QoS behavior, and measurement quality should be validated against the installed OVS/OS-Ken versions before a viva demonstration.
 
-See [docs/architecture.md](docs/architecture.md), [docs/algorithm.md](docs/algorithm.md), and [docs/viva_questions.md](docs/viva_questions.md).
+See [docs/project_positioning.md](docs/project_positioning.md), [docs/architecture.md](docs/architecture.md), [docs/algorithm.md](docs/algorithm.md), and [docs/viva_questions.md](docs/viva_questions.md).

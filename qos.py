@@ -14,7 +14,7 @@ def configure_bulk_queue(interface, capacity_mbps, rate_mbps):
     qid = _run(["ovs-vsctl", "--", "--if-exists", "get", "Port", interface, "qos"]).stdout.strip()
     if qid and qid != "[]":
         _run(["ovs-vsctl", "set", "QoS", qid, f"other-config:max-rate={capacity}"])
-        queue_id = _run(["ovs-vsctl", "--bare", "get", "QoS", qid, "queues:1"]).stdout.strip()
+        queue_id = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "QoS", qid, "queues:1"]).stdout.strip()
         if queue_id and queue_id not in ("[]", "{}"):
             _run(["ovs-vsctl", "set", "Queue", queue_id, f"other-config:max-rate={rate}"])
         else:
@@ -29,10 +29,10 @@ def verify_bulk_queue(interface):
 
 
 def verify_queue(interface, queue_number):
-    result = _run(["ovs-vsctl", "--bare", "get", "Port", interface, "qos"]).stdout.strip()
+    result = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "Port", interface, "qos"]).stdout.strip()
     if result in ("", "[]", "{}"):
         raise RuntimeError(f"No OVS QoS configured on {interface}")
-    queue_id = _run(["ovs-vsctl", "--bare", "get", "QoS", result, f"queues:{int(queue_number)}"]).stdout.strip()
+    queue_id = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "QoS", result, f"queues:{int(queue_number)}"]).stdout.strip()
     if queue_id in ("", "[]", "{}"):
         raise RuntimeError(f"OVS QoS on {interface} has no queue {queue_number} mapping")
     return result
@@ -40,12 +40,12 @@ def verify_queue(interface, queue_number):
 
 def configure_reserved_queue(interface, queue_number, minimum_mbps, maximum_mbps):
     """Create/update an OVS queue with a protected minimum and bounded maximum."""
-    qos_id = _run(["ovs-vsctl", "--bare", "get", "Port", interface, "qos"]).stdout.strip()
+    qos_id = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "Port", interface, "qos"]).stdout.strip()
     if qos_id in ("", "[]", "{}"):
         raise RuntimeError(f"No OVS QoS configured on {interface}")
     minimum = int(float(minimum_mbps) * 1_000_000)
     maximum = int(float(maximum_mbps) * 1_000_000)
-    queue_id = _run(["ovs-vsctl", "--bare", "get", "QoS", qos_id, f"queues:{int(queue_number)}"]).stdout.strip()
+    queue_id = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "QoS", qos_id, f"queues:{int(queue_number)}"]).stdout.strip()
     attrs = [f"other-config:min-rate={minimum}", f"other-config:max-rate={maximum}"]
     if queue_id and queue_id not in ("[]", "{}"):
         _run(["ovs-vsctl", "set", "Queue", queue_id, *attrs])
@@ -56,7 +56,7 @@ def configure_reserved_queue(interface, queue_number, minimum_mbps, maximum_mbps
 
 def set_qos_capacity(interface, capacity_mbps):
     """Change the parent link ceiling without overwriting the current bulk queue rate."""
-    qos_id = _run(["ovs-vsctl", "--bare", "get", "Port", interface, "qos"]).stdout.strip()
+    qos_id = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "Port", interface, "qos"]).stdout.strip()
     if qos_id in ("", "[]", "{}"):
         raise RuntimeError(f"No OVS QoS configured on {interface}")
     capacity = int(float(capacity_mbps) * 1_000_000)
@@ -66,10 +66,10 @@ def set_qos_capacity(interface, capacity_mbps):
 
 def get_qos_capacity(interface):
     """Read the active OVS parent ceiling in Mbps from OVSDB."""
-    qos_id = _run(["ovs-vsctl", "--bare", "get", "Port", interface, "qos"]).stdout.strip()
+    qos_id = _run(["ovs-vsctl", "--bare", "--", "--if-exists", "get", "Port", interface, "qos"]).stdout.strip()
     if qos_id in ("", "[]", "{}"):
         raise RuntimeError(f"No OVS QoS configured on {interface}")
-    value = _run(["ovs-vsctl", "--bare", "get", "QoS", qos_id, "other-config:max-rate"]).stdout.strip()
+    value = _run(["ovs-vsctl", "--bare", "get", "QoS", qos_id, "other-config:max-rate"]).stdout.strip().strip('"')
     try:
         return float(value) / 1_000_000.0
     except ValueError as exc:

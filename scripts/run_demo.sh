@@ -3,4 +3,4 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 . .venv/bin/activate
 sudo mn -c
-sudo -E python topology.py
+sudo env -u PYTHONPATH -u PYTHONHOME /usr/bin/python3 topology.py
