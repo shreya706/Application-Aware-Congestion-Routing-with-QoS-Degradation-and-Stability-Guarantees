@@ -6,68 +6,69 @@
 <title>Application-Aware Routing Monitor</title>
 <style>
 :root {
-  --bg:#071018; --panel:#0d1722; --panel2:#101d2a; --line:#1f3142;
-  --text:#eef6ff; --muted:#8ea5b8; --cyan:#33d6ff; --green:#55e59a;
-  --amber:#ffcc66; --red:#ff6b7a; --purple:#a98cff;
+  --bg:#070707; --panel:#111111; --panel2:#181818; --line:#343434;
+  --text:#f2f2f2; --muted:#9a9a9a; --cyan:#d5d5d5; --green:#c2c2c2;
+  --amber:#a8a8a8; --red:#b8b8b8; --purple:#888888;
 }
 *{box-sizing:border-box}
 body{margin:0;background:
-radial-gradient(circle at 85% 0%,rgba(51,214,255,.09),transparent 28rem),
-radial-gradient(circle at 0% 100%,rgba(169,140,255,.07),transparent 30rem),
+radial-gradient(circle at 85% 0%,rgba(255,255,255,.045),transparent 28rem),
+radial-gradient(circle at 0% 100%,rgba(255,255,255,.025),transparent 30rem),
 var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
 .shell{max-width:1440px;margin:auto;padding:24px}
 header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:20px}
 .eyebrow{font:600 12px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;color:var(--cyan);text-transform:uppercase}
 h1{font-size:30px;margin:7px 0 5px;letter-spacing:-.03em}
 .sub{color:var(--muted);font-size:14px}
-.badge{padding:9px 12px;border:1px solid #23465b;border-radius:999px;color:#bdeeff;background:#0b1c27;font-size:12px;white-space:nowrap}
+.badge{padding:9px 12px;border:1px solid #3d3d3d;border-radius:999px;color:#d8d8d8;background:#151515;font-size:12px;white-space:nowrap}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.control{background:rgba(13,23,34,.9);border:1px solid var(--line);border-radius:16px;padding:14px}
+.control{background:rgba(18,18,18,.96);border:1px solid var(--line);border-radius:16px;padding:14px}
 .control-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
 .segment{display:flex;gap:8px;flex-wrap:wrap}
-button{appearance:none;border:1px solid #2a4052;background:#0b1520;color:#b9c9d8;padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:650}
-button:hover{border-color:#42627b}
-button.active{background:#113246;border-color:#2caed0;color:#eaffff;box-shadow:inset 0 0 0 1px rgba(51,214,255,.15)}
+select,input{appearance:none;border:1px solid #444;background:#161616;color:#ddd;padding:9px 12px;border-radius:10px;font:inherit}select:focus,input:focus{outline:1px solid #888;border-color:#888}
+button{appearance:none;border:1px solid #444;background:#191919;color:#d0d0d0;padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:650}
+button:hover{border-color:#777;background:#242424}
+button.active{background:#e2e2e2;border-color:#f3f3f3;color:#111;box-shadow:none}
 .grid{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}
-.panel{background:linear-gradient(180deg,rgba(16,29,42,.96),rgba(10,19,28,.96));border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.16)}
+.panel{background:linear-gradient(180deg,rgba(22,22,22,.98),rgba(13,13,13,.98));border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.16)}
 .panel-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .panel-title h2{font-size:15px;margin:0}
 .note{color:var(--muted);font-size:11px}
 .topology{height:330px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
 svg{width:100%;height:100%}
-.edge{stroke:#375267;stroke-width:4;fill:none;stroke-linecap:round}
-.edge.branch{stroke:#2a7085}
+.edge{stroke:#555;stroke-width:4;fill:none;stroke-linecap:round}
+.edge.branch{stroke:#8a8a8a}
 .edge.bottleneck{stroke:var(--amber);stroke-width:6}
-.node circle{fill:#0b1924;stroke:#3a5c73;stroke-width:2}
-.node text{fill:#dcecff;font-size:13px;font-weight:700;text-anchor:middle;dominant-baseline:middle}
-.host circle{stroke:#596e80}
+.node circle{fill:#151515;stroke:#666;stroke-width:2}
+.node text{fill:#ededed;font-size:13px;font-weight:700;text-anchor:middle;dominant-baseline:middle}
+.host circle{stroke:#888}
 .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:-6px}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
-.card{border:1px solid var(--line);background:#0a151f;border-radius:15px;padding:15px;min-height:145px}
+.card{border:1px solid var(--line);background:#121212;border-radius:15px;padding:15px;min-height:145px}
 .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .class-name{font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
 .status{font-size:11px;padding:4px 7px;border-radius:999px;font-weight:700}
-.ok{color:#baffd7;background:rgba(85,229,154,.12);border:1px solid rgba(85,229,154,.3)}
-.bad{color:#ffd2d7;background:rgba(255,107,122,.12);border:1px solid rgba(255,107,122,.3)}
+.ok{color:#ededed;background:#202020;border:1px solid #555}
+.bad{color:#bdbdbd;background:#171717;border:1px solid #444}
 .metric-big{font-size:25px;font-weight:800;letter-spacing:-.03em}
 .metric-big span{font-size:11px;color:var(--muted);font-weight:600;margin-left:4px}
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;font-size:12px}
 .metrics div{color:var(--muted)}
 .metrics b{display:block;color:var(--text);font-size:13px;margin-top:2px}
-.insight{padding:14px;border-radius:14px;background:linear-gradient(90deg,rgba(51,214,255,.09),rgba(169,140,255,.07));border:1px solid #244154;margin-bottom:14px}
+.insight{padding:14px;border-radius:14px;background:linear-gradient(90deg,#1b1b1b,#141414);border:1px solid #3c3c3c;margin-bottom:14px}
 .insight-k{font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:.12em}
 .insight-v{margin-top:5px;font-weight:720;font-size:14px;line-height:1.4}
 .compare{display:grid;gap:15px}
 .chart-row{display:grid;grid-template-columns:92px 1fr 58px;gap:10px;align-items:center;font-size:12px}
-.bar-bg{height:10px;background:#111f2b;border-radius:999px;overflow:hidden}
-.bar{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--cyan),#48efbd)}
-.bar.red{background:linear-gradient(90deg,#ff7e88,#ffb65f)}
-.bar.purple{background:linear-gradient(90deg,#9e8cff,#5cbcff)}
+.bar-bg{height:10px;background:#292929;border-radius:999px;overflow:hidden}
+.bar{height:100%;border-radius:999px;background:linear-gradient(90deg,#777,#e0e0e0)}
+.bar.red{background:linear-gradient(90deg,#555,#aaa)}
+.bar.purple{background:linear-gradient(90deg,#444,#888)}
 .value{text-align:right;font-variant-numeric:tabular-nums}
 .section-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin:18px 0 9px}
 .footer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
-.kpi{padding:13px;border-radius:13px;background:#0a151f;border:1px solid var(--line)}
+.kpi{padding:13px;border-radius:13px;background:#121212;border:1px solid var(--line)}
 .kpi .n{font-size:19px;font-weight:800} .kpi .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
 @media(max-width:900px){.grid,.controls{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr 1fr}header{flex-direction:column}}
 </style>
@@ -91,7 +92,7 @@ svg{width:100%;height:100%}
   <div class="footer-grid"><div class="kpi"><div id="controllerState" class="n">—</div><div class="l">Controller</div></div><div class="kpi"><div id="networkState" class="n">—</div><div class="l">Network</div></div><div class="kpi"><div id="experimentState" class="n">—</div><div class="l">Experiment</div></div><div class="kpi"><div id="sampleState" class="n">0</div><div class="l">Live samples</div></div></div>
 </section>
 
-<section class="panel" style="border-color:#2a7085;background:#0b202b"><div class="panel-title"><h2>How to use this dashboard</h2><span class="note">Live network control and experiment analysis</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:18px"><div><b style="color:var(--cyan)">Explore experiment results</b><p class="sub">Choose a routing algorithm and scenario below to compare saved throughput, packet-loss, jitter, and QoS measurements. The graphs update after a complete experiment finishes.</p></div><div><b style="color:var(--green)">Operate the live network</b><p class="sub">Start Mininet, check host connectivity, and inspect current link rates and utilisation. Run a full experiment to generate application traffic and update the result summaries.</p></div></div></section>
+<section class="panel" style="border-color:#3c3c3c;background:#101010"><div class="panel-title"><h2>How to use this dashboard</h2><span class="note">Live network control and experiment analysis</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:18px"><div><b style="color:var(--cyan)">Explore experiment results</b><p class="sub">Choose a routing algorithm and scenario below to compare saved throughput, packet-loss, jitter, and QoS measurements. The graphs update after a complete experiment finishes.</p></div><div><b style="color:var(--green)">Operate the live network</b><p class="sub">Start Mininet, check host connectivity, and inspect current link rates and utilisation. Run a full experiment to generate application traffic and update the result summaries.</p></div></div></section>
 <div class="controls">
   <div class="control">
     <div class="control-label">Routing algorithm</div>
@@ -119,12 +120,12 @@ svg{width:100%;height:100%}
           <g class="node"><circle cx="620" cy="165" r="29"/><text x="620" y="165">S4</text></g>
           <g class="node"><circle cx="755" cy="165" r="29"/><text x="755" y="165">S5</text></g>
           <g class="node host"><circle cx="850" cy="165" r="27"/><text x="850" y="165">h4</text></g>
-          <text x="460" y="52" fill="#6fcfe8" font-size="12" text-anchor="middle">Path A</text>
-          <text x="460" y="290" fill="#6fcfe8" font-size="12" text-anchor="middle">Path B</text>
-          <text x="687" y="145" fill="#ffcc66" font-size="11" text-anchor="middle">shared bottleneck</text>
+          <text x="460" y="52" fill="#bdbdbd" font-size="12" text-anchor="middle">Path A</text>
+          <text x="460" y="290" fill="#bdbdbd" font-size="12" text-anchor="middle">Path B</text>
+          <text x="687" y="145" fill="#a8a8a8" font-size="11" text-anchor="middle">shared bottleneck</text>
         </svg>
       </div>
-      <div class="legend"><span><i class="dot" style="background:#2a7085"></i>candidate routing paths</span><span><i class="dot" style="background:#ffcc66"></i>S4–S5 controlled bottleneck</span></div>
+      <div class="legend"><span><i class="dot" style="background:#888"></i>candidate routing paths</span><span><i class="dot" style="background:#aaa"></i>S4–S5 controlled bottleneck</span></div>
     </section>
     <div class="cards" id="cards"></div>
   </div>
